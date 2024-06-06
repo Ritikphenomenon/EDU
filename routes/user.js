@@ -222,5 +222,42 @@ router.get("/purchased-courses", authenticateJwt, async (req, res) => {
 
 
 
+router.post('/changepassword', authenticateJwt, async (req, res) => {
+  const { username, currentPassword, newPassword } = req.body;
+
+  try {
+    // Find the user by ID
+    const admin = await User.findOne({username});
+
+    if (!admin) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Check if the current password matches
+    const isMatch = await bcrypt.compare(currentPassword, admin.password);
+
+    if (!isMatch) {
+      return res.status(400).json({ message: 'Current password is incorrect' });
+    }
+
+    // Hash the new password
+    
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    // Update the password in the database
+    admin.password = hashedPassword;
+    await admin.save();
+
+    res.json({ message: 'Password updated successfully' });
+  } catch (error) {
+    console.error('Error changing password:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+
+
+
+
 
 module.exports = router;
