@@ -1,5 +1,6 @@
 const express = require("express");
 const { authenticateJwt, SECRET } = require("../middleware/index");
+
 const { User, Course } = require("../db");
 
 const jwt = require("jsonwebtoken");
@@ -58,6 +59,29 @@ router.post("/login", async (req, res) => {
   }
 });
 
+
+router.put('/profileupdate', authenticateJwt, async (req, res) => {
+  const { username } = req.user;
+  const { name, bio, profilePhoto } = req.body;
+
+  try {
+      const updatedAdmin = await User.findOneAndUpdate(
+          { username: username },
+          { name, bio, profilePhoto },
+         
+      );
+
+      if (!updatedAdmin) {
+          return res.status(404).json({ message: 'User not found' });
+      }
+
+      return res.status(200).json({ message: 'Updated Successfully', admin: updatedAdmin });
+  } catch (error) {
+      res.status(500).json({ message: error.message });
+  }
+});
+
+
 // GET request to fetch profile details
 router.get("/profile", authenticateJwt, async (req, res) => {
   try {
@@ -77,6 +101,7 @@ router.get("/profile", authenticateJwt, async (req, res) => {
       name: user.name,
       profilePhoto: user.profilePhoto,
       bio: user.bio,
+      username:user.username
     });
   } catch (error) {
     console.error("Error fetching user profile:", error.message);
@@ -149,6 +174,10 @@ router.post("/order", authenticateJwt, async (req, res) => {
   }
 });
 
+
+
+
+
 router.post("/validate", authenticateJwt, async (req, res) => {
   try {
     const {
@@ -157,28 +186,39 @@ router.post("/validate", authenticateJwt, async (req, res) => {
       razorpay_signature,
       CourseId,
     } = req.body;
+
+    // Verify Razorpay signature
     const sha = crypto.createHmac("sha256", process.env.RAZORPAY_KEY_SECRET);
-
     sha.update(`${razorpay_order_id}|${razorpay_payment_id}`);
-
     const digest = sha.digest("hex");
 
     if (digest !== razorpay_signature) {
       return res.status(400).json({ msg: "Transaction is not legit!" });
     }
 
-    //console.log("req.user", req.user);
     const { username } = req.user;
-    // console.log("Finding user with username:", //username); // Logging
-    const user = await User.findOne({ username }); // Correct usage
 
-    //console.log("Finding course with ID:", CourseId); // Logging
-    const course = await Course.findById(CourseId); // Correct usage
+    // Log the incoming CourseId to debug
+    console.log("Received CourseId:", CourseId);
 
-    if (!user || !course) {
-      return res.status(404).json({ msg: "User or Course not found" });
+    // Validate the CourseId
+    if (!CourseId.match(/^[0-9a-fA-F]{24}$/)) {
+      return res.status(400).json({ msg: "Invalid Course ID" });
     }
 
+    // Find user by username
+    const user = await User.findOne({ username });
+    if (!user) {
+      return res.status(404).json({ msg: "User not found" });
+    }
+
+    // Find course by ID
+    const course = await Course.findById(CourseId);
+    if (!course) {
+      return res.status(404).json({ msg: "Course not found" });
+    }
+
+    // Add course to purchasedCourses if not already purchased
     if (!user.purchasedCourses.includes(course._id)) {
       user.purchasedCourses.push(course._id);
       await user.save();
@@ -194,6 +234,11 @@ router.post("/validate", authenticateJwt, async (req, res) => {
     res.status(500).send(error);
   }
 });
+
+
+
+
+
 
 // Route to get all purchased courses for a user
 router.get("/purchased-courses", authenticateJwt, async (req, res) => {

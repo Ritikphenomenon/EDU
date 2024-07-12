@@ -169,6 +169,27 @@ router.post('/courses', authenticateJwt, async (req, res) => {
     }
   });
 
+  router.put('/profileupdate', authenticateJwt, async (req, res) => {
+    const { username } = req.user;
+    const { name, bio, profilePhoto } = req.body;
+
+    try {
+        const updatedAdmin = await Admin.findOneAndUpdate(
+            { username: username },
+            { name, bio, profilePhoto },
+           
+        );
+
+        if (!updatedAdmin) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        return res.status(200).json({ message: 'Updated Successfully', admin: updatedAdmin });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+
   router.delete('/courses/:id', authenticateJwt, async (req, res) => {
     try {
         const courseId = req.params.id;
