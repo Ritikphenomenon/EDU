@@ -10,26 +10,34 @@ const bcrypt = require('bcrypt');
 const router = express.Router();
 
 router.post('/signup', async (req, res) => {
-    try {
-      const { username, password, name, profilePhoto, bio } = req.body;
-      const admin = await Admin.findOne({ username });
-  
-      if (admin) {
-        return res.json({ message: 'Admin already exists, please Login' });
-      }
+  try {
+    const { username, password, name, profilePhoto, bio } = req.body;
 
-        // Hash the password before saving it
-        const hashedPassword = await bcrypt.hash(password, 10);
-  
-      const newAdmin = new Admin({ username,  password: hashedPassword, name, profilePhoto, bio });
-      await newAdmin.save();
-      
-      res.json({ message: 'Admin created successfully, please login' });
-    } catch (error) {
-      console.error('Error during admin signup:', error.message);
-      res.status(500).json({ message: 'Server error during admin signup' });
+    // Check if all required fields are provided
+    if (!username || !password || !name || !profilePhoto || !bio) {
+      return res.status(400).json({ message: 'All fields are required: username, password, name, profilePhoto, bio' });
     }
-  });
+
+    const admin = await Admin.findOne({ username });
+
+    if (admin) {
+      return res.status(400).json({ message: 'Admin already exists, please login' });
+    }
+
+    // Hash the password before saving it
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const newAdmin = new Admin({ username, password: hashedPassword, name, profilePhoto, bio });
+    await newAdmin.save();
+
+    res.status(201).json({ message: 'Admin created successfully, please login' });
+  } catch (error) {
+    console.error('Error during admin signup:', error.message);
+    res.status(500).json({ message: 'Server error during admin signup' });
+  }
+});
+
+
 
   router.post('/login', async (req, res) => {
     try {

@@ -13,10 +13,16 @@ const Razorpay = require("razorpay");
 router.post("/signup", async (req, res) => {
   try {
     const { username, password, name, profilePhoto, bio } = req.body;
+
+    // Validate that all fields are present
+    if (!username || !password || !name || !profilePhoto || !bio) {
+      return res.status(400).json({ message: "All fields are required" });
+    }
+
     const user = await User.findOne({ username });
 
     if (user) {
-      return res.json({ message: "User already exists, please Login" });
+      return res.status(400).json({ message: "User already exists, please login" });
     }
 
     // Hash the password before saving it
@@ -31,12 +37,13 @@ router.post("/signup", async (req, res) => {
     });
     await newUser.save();
 
-    res.json({ message: "User created successfully, please login" });
+    res.status(201).json({ message: "User created successfully, please login" });
   } catch (error) {
-    console.error("Error during User signup:", error.message);
-    res.status(500).json({ message: "Server error during User signup" });
+    console.error("Error during user signup:", error.message);
+    res.status(500).json({ message: "Server error during user signup" });
   }
 });
+
 
 router.post("/login", async (req, res) => {
   try {
@@ -59,28 +66,27 @@ router.post("/login", async (req, res) => {
   }
 });
 
-
-router.put('/profileupdate', authenticateJwt, async (req, res) => {
+router.put("/profileupdate", authenticateJwt, async (req, res) => {
   const { username } = req.user;
   const { name, bio, profilePhoto } = req.body;
 
   try {
-      const updatedAdmin = await User.findOneAndUpdate(
-          { username: username },
-          { name, bio, profilePhoto },
-         
-      );
+    const updatedAdmin = await User.findOneAndUpdate(
+      { username: username },
+      { name, bio, profilePhoto }
+    );
 
-      if (!updatedAdmin) {
-          return res.status(404).json({ message: 'User not found' });
-      }
+    if (!updatedAdmin) {
+      return res.status(404).json({ message: "User not found" });
+    }
 
-      return res.status(200).json({ message: 'Updated Successfully', admin: updatedAdmin });
+    return res
+      .status(200)
+      .json({ message: "Updated Successfully", admin: updatedAdmin });
   } catch (error) {
-      res.status(500).json({ message: error.message });
+    res.status(500).json({ message: error.message });
   }
 });
-
 
 // GET request to fetch profile details
 router.get("/profile", authenticateJwt, async (req, res) => {
@@ -101,7 +107,7 @@ router.get("/profile", authenticateJwt, async (req, res) => {
       name: user.name,
       profilePhoto: user.profilePhoto,
       bio: user.bio,
-      username:user.username
+      username: user.username,
     });
   } catch (error) {
     console.error("Error fetching user profile:", error.message);
@@ -174,10 +180,6 @@ router.post("/order", authenticateJwt, async (req, res) => {
   }
 });
 
-
-
-
-
 router.post("/validate", authenticateJwt, async (req, res) => {
   try {
     const {
@@ -235,25 +237,20 @@ router.post("/validate", authenticateJwt, async (req, res) => {
   }
 });
 
-
-
-
-
-
 // Route to get all purchased courses for a user
 router.get("/purchased-courses", authenticateJwt, async (req, res) => {
   try {
     const { username } = req.user;
 
     // Find the user by username and populate purchasedCourses
-    const user = await User.findOne({ username }).populate('purchasedCourses');
+    const user = await User.findOne({ username }).populate("purchasedCourses");
 
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
 
     // Extract course IDs from purchasedCourses
-    const courseIds = user.purchasedCourses.map(course => course._id);
+    const courseIds = user.purchasedCourses.map((course) => course._id);
 
     // Find all courses with the extracted course IDs
     const courses = await Course.find({ _id: { $in: courseIds } });
@@ -265,44 +262,37 @@ router.get("/purchased-courses", authenticateJwt, async (req, res) => {
   }
 });
 
-
-
-router.post('/changepassword', authenticateJwt, async (req, res) => {
+router.post("/changepassword", authenticateJwt, async (req, res) => {
   const { username, currentPassword, newPassword } = req.body;
 
   try {
     // Find the user by ID
-    const admin = await User.findOne({username});
+    const admin = await User.findOne({ username });
 
     if (!admin) {
-      return res.status(404).json({ message: 'User not found' });
+      return res.status(404).json({ message: "User not found" });
     }
 
     // Check if the current password matches
     const isMatch = await bcrypt.compare(currentPassword, admin.password);
 
     if (!isMatch) {
-      return res.status(400).json({ message: 'Current password is incorrect' });
+      return res.status(400).json({ message: "Current password is incorrect" });
     }
 
     // Hash the new password
-    
+
     const hashedPassword = await bcrypt.hash(newPassword, 10);
 
     // Update the password in the database
     admin.password = hashedPassword;
     await admin.save();
 
-    res.json({ message: 'Password updated successfully' });
+    res.json({ message: "Password updated successfully" });
   } catch (error) {
-    console.error('Error changing password:', error);
-    res.status(500).json({ message: 'Server error' });
+    console.error("Error changing password:", error);
+    res.status(500).json({ message: "Server error" });
   }
 });
-
-
-
-
-
 
 module.exports = router;
